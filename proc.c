@@ -105,6 +105,7 @@ found:
     memset(p->context, 0, sizeof *p->context);
     p->context->eip = (uint)forkret;
     p->ctime = ticks;
+    p->priority = 60;
 
     return p;
 }
@@ -338,6 +339,22 @@ int waitx(int* wtime,int* rtime) {
     }
 }
 
+int set_priority(int new_priority, int pid){
+    int old_priority;
+    struct proc *p,*p1;
+    acquire(&ptable.lock);
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+        if(p->pid != pid)
+            continue;
+    }
+    old_priority = p->priority;
+    p->priority = new_priority;
+    release(&ptable.lock);
+    if(new_priority < old_priority)
+        yield();
+    return old_priority;
+}
+
 //PAGEBREAK: 42
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
@@ -360,10 +377,13 @@ void scheduler(void) {
         if(type==1) {
             unsigned long long int minval = 1e14;
             for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+                if(p->state != RUNNABLE)
+                    continue;
                 if(p->ctime < minval) {
                     p1=p;
                 }
             }
+            p=p1;
 
             // Switch to chosen process.  It is the process's job
             // to release ptable.lock and then reacquire it
@@ -378,6 +398,33 @@ void scheduler(void) {
             // Process is done running for now.
             // It should have changed its p->state before coming back.
             c->proc = 0;
+        }
+
+        else if (type==2) {
+            int minpri = 100;
+            for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+                if(p->state != RUNNABLE)
+                    continue;
+                if(p->priority < minpri) {
+                    p1=p;
+                }
+            }
+            p=p1;
+
+            // Switch to chosen process.  It is the process's job
+            // to release ptable.lock and then reacquire it
+            // before jumping back to us.
+            c->proc = p;
+            switchuvm(p);
+            p->state = RUNNING;
+
+            swtch(&(c->scheduler), p->context);
+            switchkvm();
+
+            // Process is done running for now.
+            // It should have changed its p->state before coming back.
+            c->proc = 0;
+
         }
 
         else if (type==0) {
