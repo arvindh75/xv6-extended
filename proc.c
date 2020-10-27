@@ -107,6 +107,7 @@ found:
     p->etime = 0;
     p->rtime = 0;
     p->priority = 60;
+    p->n_run = 0;
 
     return p;
 }
@@ -365,7 +366,7 @@ void ps_func() {
     acquire(&ptable.lock);
     cprintf("PID  Priority  State  r_time  w_time  n_run  cur_q  q0  q1  q2  q3  q4\n");
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-        cprintf("%d  %d  %s  %d  %d  %d  %d  %d  %d  %d  %d  %d\n", p->pid, p->priority, p->state, p->rtime, p->etime - p->ctime - p->rtime, 4, 4, 4, 4, 4, 4, 4);
+        cprintf("%d  %d  %s  %d  %d  %d  %d  %d  %d  %d  %d  %d\n", p->pid, p->priority, p->state, p->rtime, p->etime - p->ctime - p->rtime, p->n_run, 4, 4, 4, 4, 4, 4);
     }
     release(&ptable.lock);
 }
@@ -396,6 +397,7 @@ void scheduler(void) {
             // to release ptable.lock and then reacquire it
             // before jumping back to us.
             c->proc = p;
+            p->n_run++;
             switchuvm(p);
             p->state = RUNNING;
             swtch(&(c->scheduler), p->context);
@@ -429,6 +431,7 @@ void scheduler(void) {
         // to release ptable.lock and then reacquire it
         // before jumping back to us.
         c->proc = p1;
+        p1->n_run++;
         switchuvm(p1);
         p1->state = RUNNING;
         swtch(&(c->scheduler), p1->context);
@@ -461,6 +464,7 @@ void scheduler(void) {
         // to release ptable.lock and then reacquire it
         // before jumping back to us.
         c->proc = p1;
+        p1->n_run++;
         switchuvm(p1);
         p1->state = RUNNING;
         swtch(&(c->scheduler), p1->context);
