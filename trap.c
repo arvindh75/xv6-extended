@@ -13,10 +13,8 @@ struct gatedesc idt[256];
 extern uint vectors[];  // in vectors.S: array of 256 entry pointers
 struct spinlock tickslock;
 uint ticks;
-int type=1;
 
-void tvinit(void)
-{
+void tvinit(void) {
     int i;
 
     for(i = 0; i < 256; i++)
@@ -26,14 +24,12 @@ void tvinit(void)
     initlock(&tickslock, "time");
 }
 
-void idtinit(void)
-{
+void idtinit(void) {
     lidt(idt, sizeof(idt));
 }
 
 //PAGEBREAK: 41
-void trap(struct trapframe *tf)
-{
+void trap(struct trapframe *tf) {
     if(tf->trapno == T_SYSCALL){
         if(myproc()->killed)
             exit();
@@ -49,7 +45,6 @@ void trap(struct trapframe *tf)
             if(cpuid() == 0){
                 acquire(&tickslock);
                 ticks++;
-                myproc()->rtime++;
                 wakeup(&ticks);
                 release(&tickslock);
             }
@@ -99,14 +94,15 @@ void trap(struct trapframe *tf)
     if(myproc() && myproc()->killed && (tf->cs&3) == DPL_USER)
         exit();
 
+#if (SCHEDULER == RR || SCHEDULER == PBS) 
     // Force process to give up CPU on clock tick.
     // If interrupts were on while locks held, would need to check nlock.
-    if(myproc() && myproc()->state == RUNNING &&
-            tf->trapno == T_IRQ0+IRQ_TIMER)
-        if(type == 0)
-            yield();
+
+    if(myproc() && myproc()->state == RUNNING && tf->trapno == T_IRQ0+IRQ_TIMER)
+        yield();
 
     // Check if the process has been killed since we yielded
     if(myproc() && myproc()->killed && (tf->cs&3) == DPL_USER)
         exit();
+#endif
 }
