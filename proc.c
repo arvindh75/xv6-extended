@@ -342,8 +342,12 @@ int waitx(int* wtime,int* rtime) {
 }
 
 int set_priority(int new_priority, int pid){
+    if(new_priority > 100)
+        return -1;
+    if(new_priority < 0)
+        return -1;
     int old_priority;
-    struct proc *p,*p1;
+    struct proc *p;
     acquire(&ptable.lock);
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
         if(p->pid != pid)
@@ -357,6 +361,16 @@ int set_priority(int new_priority, int pid){
     return old_priority;
 }
 
+void ps_func() {
+    struct proc *p;
+    acquire(&ptable.lock);
+    cprintf("PID  Priority  State  r_time  w_time  n_run  cur_q  q0  q1  q2  q3  q4\n");
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+        cprintf("%d  %d  %s  %d  %d  %d  %d  %d  %d  %d  %d  %d\n", p->pid, p->priority, p->state, p->rtime, p->etime - p->ctime - p->rtime, 4, 4, 4, 4, 4, 4, 4);
+    }
+    release(&ptable.lock);
+}
+
 //PAGEBREAK: 42
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
@@ -366,93 +380,98 @@ int set_priority(int new_priority, int pid){
 //  - eventually that process transfers control
 //      via swtch back to the scheduler.
 void scheduler(void) {
-    struct proc *p,*p1;
+    struct proc *p;
     struct cpu *c = mycpu();
     c->proc = 0;
 
+#if SCHEDULER == RR
     for(;;){
         // Enable interrupts on this processor.
         sti();
         // Loop over process table looking for process to run.
         acquire(&ptable.lock);
-
-        if(type==1) {
-            unsigned long long int minval = 1e14;
-            for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-                if(p->state != RUNNABLE)
-                    continue;
-                if(p->ctime < minval) {
-                    p1=p;
-                }
-            }
-            p=p1;
-
+        for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+            if(p->state != RUNNABLE)
+                continue;
             // Switch to chosen process.  It is the process's job
             // to release ptable.lock and then reacquire it
             // before jumping back to us.
             c->proc = p;
             switchuvm(p);
             p->state = RUNNING;
-
             swtch(&(c->scheduler), p->context);
             switchkvm();
-
             // Process is done running for now.
             // It should have changed its p->state before coming back.
             c->proc = 0;
         }
-
-        else if (type==2) {
-            int minpri = 100;
-            for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-                if(p->state != RUNNABLE)
-                    continue;
-                if(p->priority < minpri) {
-                    p1=p;
-                }
-            }
-            p=p1;
-
-            // Switch to chosen process.  It is the process's job
-            // to release ptable.lock and then reacquire it
-            // before jumping back to us.
-            c->proc = p;
-            switchuvm(p);
-            p->state = RUNNING;
-
-            swtch(&(c->scheduler), p->context);
-            switchkvm();
-
-            // Process is done running for now.
-            // It should have changed its p->state before coming back.
-            c->proc = 0;
-
-        }
-
-        else if (type==0) {
-            for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-                if(p->state != RUNNABLE)
-                    continue;
-
-                // Switch to chosen process.  It is the process's job
-                // to release ptable.lock and then reacquire it
-                // before jumping back to us.
-                c->proc = p;
-                switchuvm(p);
-                p->state = RUNNING;
-
-                swtch(&(c->scheduler), p->context);
-                switchkvm();
-
-                // Process is done running for now.
-                // It should have changed its p->state before coming back.
-                c->proc = 0;
-            }
-        }
-
         release(&ptable.lock);
-
     }
+#elif SCHEDULER == FCFS
+    for(;;){
+        // Enable interrupts on this processor.
+        sti();
+        // Loop over process table looking for process to run.
+        acquire(&ptable.lock);
+        int minval = ticks+75;
+        struct proc *p1=0;
+        for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+            if(p->state != RUNNABLE)
+                continue;
+            if(p->ctime < minval) {
+                p1=p;
+            }
+        }
+        if (p1 == 0) {
+            release(&ptable.lock);
+            continue;
+        }
+        // Switch to chosen process.  It is the process's job
+        // to release ptable.lock and then reacquire it
+        // before jumping back to us.
+        c->proc = p1;
+        switchuvm(p1);
+        p1->state = RUNNING;
+        swtch(&(c->scheduler), p1->context);
+        switchkvm();
+        // Process is done running for now.
+        // It should have changed its p->state before coming back.
+        c->proc = 0;
+        release(&ptable.lock);
+    }
+#elif SCHEDULER == PBS
+    for(;;){
+        // Enable interrupts on this processor.
+        sti();
+        // Loop over process table looking for process to run.
+        acquire(&ptable.lock);
+        int minpri = 101;
+        struct proc *p1=0;
+        for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+            if(p->state != RUNNABLE)
+                continue;
+            if(p->priority < minpri) {
+                p1=p;
+            }
+        }
+        if (p1 == 0) {
+            release(&ptable.lock);
+            continue;
+        }
+        // Switch to chosen process.  It is the process's job
+        // to release ptable.lock and then reacquire it
+        // before jumping back to us.
+        c->proc = p1;
+        switchuvm(p1);
+        p1->state = RUNNING;
+        swtch(&(c->scheduler), p1->context);
+        switchkvm();
+        // Process is done running for now.
+        // It should have changed its p->state before coming back.
+        c->proc = 0;
+        acquire(&ptable.lock);
+    }
+#endif
 }
 
 // Enter scheduler.  Must hold only ptable.lock
