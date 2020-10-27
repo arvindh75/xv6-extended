@@ -105,6 +105,8 @@ found:
     memset(p->context, 0, sizeof *p->context);
     p->context->eip = (uint)forkret;
     p->ctime = ticks;
+    p->etime = 0;
+    p->rtime = 0;
     p->priority = 60;
 
     return p;
