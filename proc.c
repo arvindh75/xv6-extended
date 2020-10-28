@@ -24,6 +24,22 @@ void pinit(void) {
     initlock(&ptable.lock, "ptable");
 }
 
+void change_q(struct proc* p) {
+    acquire(&ptable.lock);
+    p->cur_q_ticks=0;
+    p->q_join_time = ticks;
+    p->cur_q++;
+    p->q_ticks[p->cur_q]++;
+    release(&ptable.lock);
+}
+
+void inc_q_ticks(struct proc* p) {
+    acquire(&ptable.lock);
+    p->cur_q_ticks++;
+    p->q_ticks[p->cur_q]++;
+    release(&ptable.lock);
+}
+
 // Must be called with interrupts disabled
 int cpuid() {
     return mycpu()-cpus;
@@ -153,6 +169,11 @@ void userinit(void) {
 
     p->state = RUNNABLE;
 
+#ifdef MLFQ
+    p->cur_q = 0;
+    p->q_join_time = ticks;
+#endif
+
     release(&ptable.lock);
 }
 
@@ -214,6 +235,11 @@ int fork(void) {
     acquire(&ptable.lock);
 
     np->state = RUNNABLE;
+
+#ifdef MLFQ
+    np->cur_q = 0;
+    np->q_join_time = ticks;
+#endif
 
     release(&ptable.lock);
 
@@ -652,8 +678,14 @@ static void wakeup1(void *chan) {
     struct proc *p;
 
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-        if(p->state == SLEEPING && p->chan == chan)
+        if(p->state == SLEEPING && p->chan == chan) {
             p->state = RUNNABLE;
+#ifdef MLFQ
+    p->q_join_time = ticks;
+    p->cur_q_ticks = 0;
+    p->cur_q = p->cur_q;
+#endif
+    }
 }
 
 // Wake up all processes sleeping on chan.
@@ -674,8 +706,14 @@ int kill(int pid) {
         if(p->pid == pid){
             p->killed = 1;
             // Wake process from sleep if necessary.
-            if(p->state == SLEEPING)
+            if(p->state == SLEEPING) {
                 p->state = RUNNABLE;
+#ifdef MLFQ
+    p->q_join_time = ticks;
+    p->cur_q_ticks = 0;
+    p->cur_q = p->cur_q;
+#endif
+            }
             release(&ptable.lock);
             return 0;
         }
