@@ -7,8 +7,7 @@
 #include "fs.h"
 
 int ps() {
-    struct proc_ps *p1[NPROC];
-    int ret = ps_func(&p1);
+    int ret = ps_func();
     return ret;
 }
 

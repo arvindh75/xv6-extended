@@ -361,22 +361,20 @@ int set_priority(int new_priority, int pid){
     return old_priority;
 }
 
-int ps_func(struct proc_ps *p1[NPROC]) {
+int ps_func() {
     int num_proc=0;
     struct proc *p;
     acquire(&ptable.lock);
     cprintf("PID  Priority  State  r_time  w_time  n_run  cur_q  q0  q1  q2  q3  q4\n");
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
         if(p->state != UNUSED) {
-            p1[num_proc]->state = p->state;
-            p1[num_proc]->pid = p->pid;
-            p1[num_proc]->priority = p->priority;
-            p1[num_proc]->rtime = p->rtime;
-            p1[num_proc]->iotime = p->iotime;
-            p1[num_proc]->ctime = p->ctime;
-            p1[num_proc]->etime = p->etime;
-            p1[num_proc]->n_run = p->n_run;
-            p1[num_proc]->cur_q = 0;
+            cprintf("%d ",p->pid);
+            cprintf("%d ",p->priority);
+            cprintf("%s ",p->state);
+            cprintf("%d ",p->rtime);
+            cprintf("%d ",ticks - p->ctime - p->rtime - p->iotime);
+            cprintf("%d ",p->n_run);
+            cprintf("\n");
             num_proc++;
         }
     }

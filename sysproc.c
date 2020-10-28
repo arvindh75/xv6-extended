@@ -113,3 +113,7 @@ int sys_set_priority(void) {
 
     return set_priority(pid, new_priority);
 }
+
+int sys_ps_func(void) {
+    return ps_func();
+}
