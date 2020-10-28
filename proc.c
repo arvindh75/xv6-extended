@@ -318,6 +318,9 @@ int wait(void) {
                 freevm(p->pgdir);
 #ifdef MLFQ
                 p->cur_q = -1;
+#ifdef DEBUG_Y
+                cprintf("Process with %d has relinquised CPU\n", p->pid);
+#endif
 #endif
                 p->pid = 0;
                 p->parent = 0;
@@ -363,6 +366,9 @@ int waitx(int* wtime,int* rtime) {
                 freevm(p->pgdir);
 #ifdef MLFQ
                 p->cur_q = -1;
+#ifdef DEBUG_Y
+                cprintf("Process with %d has relinquised CPU\n", p->pid);
+#endif
 #endif
                 p->pid = 0;
                 p->parent = 0;
@@ -560,6 +566,9 @@ void scheduler(void) {
                     p->q_join_time = ticks;
                     p->cur_q--;
                     p->prev_q--;
+#ifdef DEBUG_Y
+                cprintf("Process with %d has aged, moving from %d to %d\n", p->pid, p->cur_q+1, p->cur_q);
+#endif
                 }
                 if(p->cur_q == 0) {
                     if(min_join_time == -1) {
@@ -577,6 +586,9 @@ void scheduler(void) {
             release(&ptable.lock);
             continue;
         }
+#ifdef DEBUG_Y
+                cprintf("Process with %d has been chosen to run from queue %d\n", p->pid, p->cur_q);
+#endif
         // Switch to chosen process.  It is the process's job
         // to release ptable.lock and then reacquire it
         // before jumping back to us.
