@@ -108,6 +108,12 @@ found:
     p->rtime = 0;
     p->priority = 60;
     p->n_run = 0;
+    p->cur_q = 0;
+    p->q_ticks[0] = 0;
+    p->q_ticks[1] = 0;
+    p->q_ticks[2] = 0;
+    p->q_ticks[3] = 0;
+    p->q_ticks[4] = 0;
 
     return p;
 }
@@ -365,15 +371,36 @@ int ps_func() {
     int num_proc=0;
     struct proc *p;
     acquire(&ptable.lock);
+#ifdef MLFQ
     cprintf("PID  Priority  State  r_time  w_time  n_run  cur_q  q0  q1  q2  q3  q4\n");
+#else
+    cprintf("PID  Priority  State  r_time  w_time  n_run\n");
+#endif
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
         if(p->state != UNUSED) {
             cprintf("%d ",p->pid);
             cprintf("%d ",p->priority);
-            cprintf("%s ",p->state);
+            if(p->state == RUNNING)
+                cprintf("RUNNING ");
+            if(p->state == EMBRYO)
+                cprintf("EMBRYO ");
+            if(p->state == SLEEPING)
+                cprintf("SLEEPING ");
+            if(p->state == RUNNABLE)
+                cprintf("RUNNABLE ");
+            if(p->state == ZOMBIE)
+                cprintf("ZOMBIE ");
             cprintf("%d ",p->rtime);
             cprintf("%d ",ticks - p->ctime - p->rtime - p->iotime);
             cprintf("%d ",p->n_run);
+#ifdef MLFQ
+            cprintf("%d ",p->cur_q);
+            cprintf("%d ",p->q_ticks[0]);
+            cprintf("%d ",p->q_ticks[1]);
+            cprintf("%d ",p->q_ticks[2]);
+            cprintf("%d ",p->q_ticks[3]);
+            cprintf("%d ",p->q_ticks[4]);
+#endif
             cprintf("\n");
             num_proc++;
         }
@@ -395,7 +422,7 @@ void scheduler(void) {
     struct cpu *c = mycpu();
     c->proc = 0;
 
-#if SCHEDULER == RR
+#ifdef  RR
     for(;;){
         // Enable interrupts on this processor.
         sti();
@@ -419,7 +446,7 @@ void scheduler(void) {
         }
         release(&ptable.lock);
     }
-#elif SCHEDULER == FCFS
+#elif FCFS
     for(;;){
         // Enable interrupts on this processor.
         sti();
@@ -452,7 +479,7 @@ void scheduler(void) {
         c->proc = 0;
         release(&ptable.lock);
     }
-#elif SCHEDULER == PBS
+#elif PBS
     for(;;){
         // Enable interrupts on this processor.
         sti();
@@ -483,7 +510,7 @@ void scheduler(void) {
         // Process is done running for now.
         // It should have changed its p->state before coming back.
         c->proc = 0;
-        acquire(&ptable.lock);
+        release(&ptable.lock);
     }
 #endif
 }

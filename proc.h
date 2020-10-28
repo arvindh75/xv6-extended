@@ -55,6 +55,8 @@ struct proc {
     int iotime;
     int priority;
     int n_run;
+    int cur_q;
+    int q_ticks[5];
 };
 
 struct proc_ps {
