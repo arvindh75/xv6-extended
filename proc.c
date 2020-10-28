@@ -29,6 +29,7 @@ void change_q(struct proc* p) {
     p->cur_q_ticks=0;
     p->q_join_time = ticks;
     p->cur_q++;
+    p->prev_q++;
     p->q_ticks[p->cur_q]++;
     release(&ptable.lock);
 }
@@ -125,6 +126,7 @@ found:
     p->priority = 60;
     p->n_run = 0;
     p->cur_q = 0;
+    p->prev_q = 0;
     p->q_join_time = p->ctime;
     p->cur_q_ticks = 0;
     p->q_ticks[0] = 0;
@@ -171,6 +173,7 @@ void userinit(void) {
 
 #ifdef MLFQ
     p->cur_q = 0;
+    p->prev_q = 0;
     p->q_join_time = ticks;
 #endif
 
@@ -238,6 +241,7 @@ int fork(void) {
 
 #ifdef MLFQ
     np->cur_q = 0;
+    np->prev_q = 0;
     np->q_join_time = ticks;
 #endif
 
@@ -312,6 +316,9 @@ int wait(void) {
                 kfree(p->kstack);
                 p->kstack = 0;
                 freevm(p->pgdir);
+#ifdef MLFQ
+                p->cur_q = -1;
+#endif
                 p->pid = 0;
                 p->parent = 0;
                 p->name[0] = 0;
@@ -354,6 +361,9 @@ int waitx(int* wtime,int* rtime) {
                 kfree(p->kstack);
                 p->kstack = 0;
                 freevm(p->pgdir);
+#ifdef MLFQ
+                p->cur_q = -1;
+#endif
                 p->pid = 0;
                 p->parent = 0;
                 p->name[0] = 0;
@@ -549,6 +559,7 @@ void scheduler(void) {
                 if(ticks - p->q_join_time >= AGE) {
                     p->q_join_time = ticks;
                     p->cur_q--;
+                    p->prev_q--;
                 }
                 if(p->cur_q == 0) {
                     if(min_join_time == -1) {
@@ -683,7 +694,7 @@ static void wakeup1(void *chan) {
 #ifdef MLFQ
     p->q_join_time = ticks;
     p->cur_q_ticks = 0;
-    p->cur_q = p->cur_q;
+    p->cur_q = p->prev_q;
 #endif
     }
 }
@@ -711,7 +722,7 @@ int kill(int pid) {
 #ifdef MLFQ
     p->q_join_time = ticks;
     p->cur_q_ticks = 0;
-    p->cur_q = p->cur_q;
+    p->cur_q = p->prev_q;
 #endif
             }
             release(&ptable.lock);

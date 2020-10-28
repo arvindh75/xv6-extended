@@ -123,7 +123,8 @@ void            yield(void);
 int             waitx(int*, int*);
 int             set_priority(int, int);
 int             ps_func(void);
-
+void            change_q(struct proc* p);
+void            inc_q_ticks(struct proc *p);
 // swtch.S
 void            swtch(struct context**, struct context*);
 

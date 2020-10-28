@@ -60,6 +60,7 @@ struct proc {
     int q_ticks[5];
     int q_join_time;
     int cur_q_ticks;
+    int prev_q;
 };
 
 struct proc_ps {
