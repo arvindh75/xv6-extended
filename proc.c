@@ -315,6 +315,8 @@ int waitx(int* wtime,int* rtime) {
             if(p->state == ZOMBIE){
                 // Found one.
                 pid = p->pid;
+                *wtime = (p->etime - p->ctime - p->rtime);
+                *rtime = p->rtime;
                 kfree(p->kstack);
                 p->kstack = 0;
                 freevm(p->pgdir);
@@ -323,8 +325,6 @@ int waitx(int* wtime,int* rtime) {
                 p->name[0] = 0;
                 p->killed = 0;
                 p->state = UNUSED;
-                *wtime = (p->etime - p->ctime - p->rtime - p->iotime);
-                *rtime = p->rtime;
                 release(&ptable.lock);
                 return pid;
             }
