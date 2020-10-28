@@ -17,6 +17,7 @@ static struct proc *initproc;
 int nextpid = 1;
 extern void forkret(void);
 extern void trapret(void);
+int q_max_ticks[5] = {1, 2, 4, 8, 16};
 
 static void wakeup1(void *chan);
 
@@ -109,6 +110,8 @@ found:
     p->priority = 60;
     p->n_run = 0;
     p->cur_q = 0;
+    p->q_join_time = p->ctime;
+    p->cur_q_ticks = 0;
     p->q_ticks[0] = 0;
     p->q_ticks[1] = 0;
     p->q_ticks[2] = 0;
@@ -372,34 +375,36 @@ int ps_func() {
     struct proc *p;
     acquire(&ptable.lock);
 #ifdef MLFQ
-    cprintf("PID  Priority  State  r_time  w_time  n_run  cur_q  q0  q1  q2  q3  q4\n");
+    //cprintf("PID  Priority  State  r_time  w_time  n_run  cur_q  q0  q1  q2  q3  q4\n");
+    cprintf("%s %s %s %s %s %s %s %s %s %s %s %s\n", "PID", "Priority", "State", "r_time", "w_time", "n_run", "cur_q", "q0", "q1", "q2", "q3", "q4");
 #else
-    cprintf("PID  Priority  State  r_time  w_time  n_run\n");
+    //cprintf("PID  Priority  State  r_time  w_time  n_run\n");
+    cprintf("%s %s %s %s %s %s\n", "PID", "Priority", "State", "r_time", "w_time", "n_run");
 #endif
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
         if(p->state != UNUSED) {
-            cprintf("%d ",p->pid);
-            cprintf("%d ",p->priority);
+            cprintf("%d     ",p->pid);
+            cprintf("%d     ",p->priority);
             if(p->state == RUNNING)
-                cprintf("RUNNING ");
+                cprintf("%s    ", "RUNNING");
             if(p->state == EMBRYO)
-                cprintf("EMBRYO ");
+                cprintf("%s     ", "EMBRYO");
             if(p->state == SLEEPING)
-                cprintf("SLEEPING ");
+                cprintf("%s   ", "SLEEPING");
             if(p->state == RUNNABLE)
-                cprintf("RUNNABLE ");
+                cprintf("%s   ", "RUNNABLE");
             if(p->state == ZOMBIE)
-                cprintf("ZOMBIE ");
-            cprintf("%d ",p->rtime);
-            cprintf("%d ",ticks - p->ctime - p->rtime - p->iotime);
-            cprintf("%d ",p->n_run);
+                cprintf("%s   ", "ZOMBIE");
+            cprintf("%d   ",p->rtime);
+            cprintf("%d   ",ticks - p->ctime - p->rtime - p->iotime);
+            cprintf("%d   ",p->n_run);
 #ifdef MLFQ
-            cprintf("%d ",p->cur_q);
-            cprintf("%d ",p->q_ticks[0]);
-            cprintf("%d ",p->q_ticks[1]);
-            cprintf("%d ",p->q_ticks[2]);
-            cprintf("%d ",p->q_ticks[3]);
-            cprintf("%d ",p->q_ticks[4]);
+            cprintf("%d   ",p->cur_q);
+            cprintf("%d   ",p->q_ticks[0]);
+            cprintf("%d   ",p->q_ticks[1]);
+            cprintf("%d   ",p->q_ticks[2]);
+            cprintf("%d   ",p->q_ticks[3]);
+            cprintf("%d",p->q_ticks[4]);
 #endif
             cprintf("\n");
             num_proc++;
@@ -512,6 +517,30 @@ void scheduler(void) {
         c->proc = 0;
         release(&ptable.lock);
     }
+#elif MLFQ
+    int min_join_time=-1;
+    struct proc *p1=0;
+    acquire(&ptable.lock);
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+        if(p->state == RUNNABLE) {
+            if(ticks - p->q_join_time >= AGE) {
+                p->q_join_time = ticks;
+                p->cur_q--;
+            }
+            p->q_ticks[p->cur_q]++;
+            if(p->cur_q == 0) {
+                if(min_join_time == -1) {
+                    min_join_time = p->q_join_time;
+                    p1=p;
+                }
+                else if(min_join_time > p->q_join_time) {
+                    min_join_time = p->q_join_time;
+                    p1=p;
+                }
+            }
+        }
+    }
+    release(&ptable.lock);
 #endif
 }
 

@@ -9,6 +9,7 @@ struct cpu {
     int intena;                  // Were interrupts enabled before pushcli?
     struct proc *proc;           // The process running on this cpu or null
 };
+#define AGE 31
 
 extern struct cpu cpus[NCPU];
 extern int ncpu;
@@ -57,6 +58,8 @@ struct proc {
     int n_run;
     int cur_q;
     int q_ticks[5];
+    int q_join_time;
+    int cur_q_ticks;
 };
 
 struct proc_ps {
