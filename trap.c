@@ -13,6 +13,7 @@ struct gatedesc idt[256];
 extern uint vectors[];  // in vectors.S: array of 256 entry pointers
 struct spinlock tickslock;
 uint ticks;
+int q_max_ticks[5] = {1, 2, 4, 8, 16};
 
 void tvinit(void) {
     int i;
@@ -101,14 +102,14 @@ void trap(struct trapframe *tf) {
     // until it gets to the regular system call return.)
     if(myproc() && myproc()->killed && (tf->cs&3) == DPL_USER)
         exit();
+
     if(myproc() && myproc()->state == RUNNING && tf->trapno == T_IRQ0 + IRQ_TIMER) {
 #ifdef MLFQ
         if(myproc()->cur_q_ticks >= q_max_ticks[myproc()->cur_q]) {
-            acquire(&ptable.lock);
             myproc()->cur_q_ticks=0;
-            p->q_join_time = ticks;
+            myproc()->q_join_time = ticks;
             myproc()->cur_q++;
-            release(&ptable.lock);
+            myproc()->q_ticks[myproc()->cur_q]++;
             yield();
             
             // Check if the process has been killed since we yielded
@@ -117,10 +118,8 @@ void trap(struct trapframe *tf) {
 
         }
         else {
-            acquire(&ptable.lock);
             myproc()->cur_q_ticks++;
             myproc()->q_ticks[myproc()->cur_q]++;
-            release(&ptable.lock);
         }
 #elif RR
         // Force process to give up CPU on clock tick.

@@ -17,7 +17,6 @@ static struct proc *initproc;
 int nextpid = 1;
 extern void forkret(void);
 extern void trapret(void);
-int q_max_ticks[5] = {1, 2, 4, 8, 16};
 
 static void wakeup1(void *chan);
 
@@ -427,8 +426,8 @@ void scheduler(void) {
     struct cpu *c = mycpu();
     c->proc = 0;
 
-#ifdef  RR
     for(;;){
+#ifdef RR
         // Enable interrupts on this processor.
         sti();
         // Loop over process table looking for process to run.
@@ -450,9 +449,7 @@ void scheduler(void) {
             c->proc = 0;
         }
         release(&ptable.lock);
-    }
 #elif FCFS
-    for(;;){
         // Enable interrupts on this processor.
         sti();
         // Loop over process table looking for process to run.
@@ -483,9 +480,7 @@ void scheduler(void) {
         // It should have changed its p->state before coming back.
         c->proc = 0;
         release(&ptable.lock);
-    }
 #elif PBS
-    for(;;){
         // Enable interrupts on this processor.
         sti();
         // Loop over process table looking for process to run.
@@ -516,32 +511,50 @@ void scheduler(void) {
         // It should have changed its p->state before coming back.
         c->proc = 0;
         release(&ptable.lock);
-    }
 #elif MLFQ
-    int min_join_time=-1;
-    struct proc *p1=0;
-    acquire(&ptable.lock);
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
-        if(p->state == RUNNABLE) {
-            if(ticks - p->q_join_time >= AGE) {
-                p->q_join_time = ticks;
-                p->cur_q--;
-            }
-            p->q_ticks[p->cur_q]++;
-            if(p->cur_q == 0) {
-                if(min_join_time == -1) {
-                    min_join_time = p->q_join_time;
-                    p1=p;
+        // Enable interrupts on this processor.
+        sti();
+        // Loop over process table looking for process to run.
+        int min_join_time=-1;
+        struct proc *p1=0;
+        acquire(&ptable.lock);
+        for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+            if(p->state == RUNNABLE) {
+                if(ticks - p->q_join_time >= AGE) {
+                    p->q_join_time = ticks;
+                    p->cur_q--;
                 }
-                else if(min_join_time > p->q_join_time) {
-                    min_join_time = p->q_join_time;
-                    p1=p;
+                if(p->cur_q == 0) {
+                    if(min_join_time == -1) {
+                        min_join_time = p->q_join_time;
+                        p1=p;
+                    }
+                    else if(min_join_time > p->q_join_time) {
+                        min_join_time = p->q_join_time;
+                        p1=p;
+                    }
                 }
             }
         }
-    }
-    release(&ptable.lock);
+        if (p1 == 0) {
+            release(&ptable.lock);
+            continue;
+        }
+        // Switch to chosen process.  It is the process's job
+        // to release ptable.lock and then reacquire it
+        // before jumping back to us.
+        c->proc = p1;
+        p1->n_run++;
+        switchuvm(p1);
+        p1->state = RUNNING;
+        swtch(&(c->scheduler), p1->context);
+        switchkvm();
+        // Process is done running for now.
+        // It should have changed its p->state before coming back.
+        c->proc = 0;
+        release(&ptable.lock);
 #endif
+    }
 }
 
 // Enter scheduler.  Must hold only ptable.lock
