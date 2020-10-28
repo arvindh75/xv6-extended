@@ -52,6 +52,7 @@ struct proc {
   int ctime;
   int etime;
   int rtime;
+  int iotime;
   int priority;
   int n_run;
 };

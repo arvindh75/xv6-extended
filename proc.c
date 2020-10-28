@@ -323,7 +323,7 @@ int waitx(int* wtime,int* rtime) {
                 p->name[0] = 0;
                 p->killed = 0;
                 p->state = UNUSED;
-                *wtime = (p->etime - p->ctime - p->rtime);
+                *wtime = (p->etime - p->ctime - p->rtime - p->iotime);
                 *rtime = p->rtime;
                 release(&ptable.lock);
                 return pid;
@@ -366,7 +366,7 @@ void ps_func() {
     acquire(&ptable.lock);
     cprintf("PID  Priority  State  r_time  w_time  n_run  cur_q  q0  q1  q2  q3  q4\n");
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-        cprintf("%d  %d  %s  %d  %d  %d  %d  %d  %d  %d  %d  %d\n", p->pid, p->priority, p->state, p->rtime, p->etime - p->ctime - p->rtime, p->n_run, 4, 4, 4, 4, 4, 4);
+        cprintf("%d  %d  %s  %d  %d  %d  %d  %d  %d  %d  %d  %d\n", p->pid, p->priority, p->state, p->rtime, p->etime - p->ctime - p->rtime - p->iotime, p->n_run, 4, 4, 4, 4, 4, 4);
     }
     release(&ptable.lock);
 }
