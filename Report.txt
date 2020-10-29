@@ -23,7 +23,7 @@
 
 --> Performance:
     Testing the running time of the algorithms multiple times, the following order describes the average result.(Order of speed)
-    RR > MLFQ > PBS > FCFS
+    RR > PBS >= MLFQ >> FCFS
 
 --> Graph:
     For the bonus, a python script is included which works on the output produced by the emulator and plots a graph. Two smaple graphs are attached.

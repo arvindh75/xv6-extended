@@ -8,7 +8,7 @@ int main(int argc, char *argv[])
     int j;
     for (j = 0; j < number_of_processes; j++)
     {
-        sleep(100);
+        //sleep(100);
         int pid = fork();
         if (pid < 0)
         {
