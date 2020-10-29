@@ -568,40 +568,51 @@ void scheduler(void) {
         // Loop over process table looking for process to run.
         int min_join_time=-1;
         struct proc *p1=0;
+        int found_proc = 0;
         //TODO: Take processes from any queue (if 0 is empty, choose from 1)
         acquire(&ptable.lock);
-        for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
-            if(p->state == RUNNABLE && p->cur_q != -1) { //Loop through RUNNABLE processes and which are not waiting
-                if((ticks - p->cur_q_ticks >= q_age[p->cur_q]) && p->cur_q > 0) { //If the process has aged in current queue
-                    p->cur_q_ticks = 0; //Ticks in current queue in this round
-                    p->q_join_time = ticks; //Join time
-                    p->cur_q--; //Decrease the queue
-                    p->prev_q--;
+        for(int it=0; it<4; it++) {
+            if(found_proc == 0) {
+                for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+                    if(p->state == RUNNABLE && p->cur_q == it) { //Loop through RUNNABLE processes and which are not waiting
+                        if((ticks - p->cur_q_ticks >= q_age[p->cur_q]) && p->cur_q > 0) { //If the process has aged in current queue
+                            p->cur_q_ticks = 0; //Ticks in current queue in this round
+                            p->q_join_time = ticks; //Join time
+                            p->cur_q--; //Decrease the queue
+                            p->prev_q--;
 
 #ifdef DEBUG_Y
-                cprintf("Process with %d has aged, moving from %d to %d\n", p->pid, p->cur_q+1, p->cur_q);
+                            cprintf("Process with %d has aged, moving from %d to %d\n", p->pid, p->cur_q+1, p->cur_q);
 #endif
-                }
-                if(p->cur_q == 0) { //If the process is in the 0th queue
-                    //Choose the one with min_join_time to simulate a queue
-                    if(min_join_time == -1) {
-                        min_join_time = p->q_join_time;
-                        p1=p;
-                    }
-                    else if(min_join_time > p->q_join_time) {
-                        min_join_time = p->q_join_time;
-                        p1=p;
+                        }
+                        if(p->cur_q == 0) { //If the process is in the 0th queue
+                            //Choose the one with min_join_time to simulate a queue
+                            if(min_join_time == -1) {
+                                min_join_time = p->q_join_time;
+                                p1=p;
+                                found_proc = 1;
+                            }
+                            else if(min_join_time > p->q_join_time) {
+                                min_join_time = p->q_join_time;
+                                p1=p;
+                                found_proc = 1;
+                            }
+                        }
+                        else {
+                            p1=p;
+                            found_proc = 1;
+                        }
                     }
                 }
             }
         }
-        if (p1 == 0) {
+        if (found_proc == 0) {
             release(&ptable.lock);
             continue;
         }
         p1->q_join_time = ticks+100;
 #ifdef DEBUG_Y
-                cprintf("Process with %d has been chosen to run from queue %d\n", p->pid, p->cur_q);
+        cprintf("Process with %d has been chosen to run from queue %d\n", p->pid, p->cur_q);
 #endif
         // Switch to chosen process.  It is the process's job
         // to release ptable.lock and then reacquire it
@@ -718,12 +729,12 @@ static void wakeup1(void *chan) {
         if(p->state == SLEEPING && p->chan == chan) {
             p->state = RUNNABLE;
 #ifdef MLFQ //Re-add the process back to its previous queue as it is woken up now
-    p->q_join_time = ticks;
-    p->cur_q_ticks = 0;
-    p->cur_q = p->prev_q;
-    p->prev_q = p->cur_q;
+            p->q_join_time = ticks;
+            p->cur_q_ticks = 0;
+            p->cur_q = p->prev_q;
+            p->prev_q = p->cur_q;
 #endif
-    }
+        }
 }
 
 // Wake up all processes sleeping on chan.
@@ -747,10 +758,10 @@ int kill(int pid) {
             if(p->state == SLEEPING) {
                 p->state = RUNNABLE;
 #ifdef MLFQ //Re-add the process back to its previous queue as it is woken up now
-    p->q_join_time = ticks;
-    p->cur_q_ticks = 0;
-    p->cur_q = p->prev_q;
-    p->prev_q = p->cur_q;
+                p->q_join_time = ticks;
+                p->cur_q_ticks = 0;
+                p->cur_q = p->prev_q;
+                p->prev_q = p->cur_q;
 #endif
             }
             release(&ptable.lock);
