@@ -426,7 +426,7 @@ int ps_func() {
     acquire(&ptable.lock);
 #ifdef MLFQ
     //cprintf("PID  Priority  State  r_time  w_time  n_run  cur_q  q0  q1  q2  q3  q4\n");
-    cprintf("%s %s %s %s %s %s %s %s %s %s %s %s\n", "PID", "Priority", "State", "r_time", "w_time", "n_run", "cur_q", "q0", "q1", "q2", "q3", "q4");
+    cprintf("%s %s   %s   %s %s %s %s  %s  %s   %s   %s   %s\n", "PID", "Priority", "State", "r_time", "w_time", "n_run", "cur_q", "q0", "q1", "q2", "q3", "q4");
 #else
     //cprintf("PID  Priority  State  r_time  w_time  n_run\n");
     cprintf("%s %s %s %s %s %s\n", "PID", "Priority", "State", "r_time", "w_time", "n_run");
@@ -436,25 +436,25 @@ int ps_func() {
             cprintf("%d     ",p->pid);
             cprintf("%d     ",p->priority);
             if(p->state == RUNNING)
-                cprintf("%s    ", "RUNNING");
+                cprintf(" %s    ", "RUNNING");
             if(p->state == EMBRYO)
-                cprintf("%s     ", "EMBRYO");
+                cprintf(" %s     ", "EMBRYO");
             if(p->state == SLEEPING)
-                cprintf("%s   ", "SLEEPING");
+                cprintf(" %s   ", "SLEEPING");
             if(p->state == RUNNABLE)
-                cprintf("%s   ", "RUNNABLE");
+                cprintf(" %s   ", "RUNNABLE");
             if(p->state == ZOMBIE)
-                cprintf("%s   ", "ZOMBIE");
-            cprintf("%d   ",p->rtime);
-            cprintf("%d   ",ticks - p->ctime - p->rtime - p->iotime);
-            cprintf("%d   ",p->n_run);
+                cprintf(" %s   ", "ZOMBIE");
+            cprintf("  %d   ",p->rtime);
+            cprintf("  %d   ",ticks - p->ctime - p->rtime - p->iotime);
+            cprintf("  %d   ",p->n_run);
 #ifdef MLFQ
             cprintf("%d   ",p->cur_q);
-            cprintf("%d   ",p->q_ticks[0]);
-            cprintf("%d   ",p->q_ticks[1]);
-            cprintf("%d   ",p->q_ticks[2]);
-            cprintf("%d   ",p->q_ticks[3]);
-            cprintf("%d",p->q_ticks[4]);
+            cprintf(" %d   ",p->q_ticks[0]);
+            cprintf(" %d   ",p->q_ticks[1]);
+            cprintf(" %d   ",p->q_ticks[2]);
+            cprintf(" %d   ",p->q_ticks[3]);
+            cprintf(" %d",p->q_ticks[4]);
 #endif
             cprintf("\n");
             num_proc++;
@@ -568,11 +568,12 @@ void scheduler(void) {
         // Loop over process table looking for process to run.
         int min_join_time=-1;
         struct proc *p1=0;
+        //TODO: Take processes from any queue (if 0 is empty, choose from 1)
         acquire(&ptable.lock);
         for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
             if(p->state == RUNNABLE && p->cur_q != -1) { //Loop through RUNNABLE processes and which are not waiting
-                if((ticks - p->q_join_time >= q_age[p->cur_q]) && p->cur_q > 0) { //If the process has aged in current queue
-                    p->cur_q_ticks=0; //Ticks in current queue in this round
+                if((ticks - p->cur_q_ticks >= q_age[p->cur_q]) && p->cur_q > 0) { //If the process has aged in current queue
+                    p->cur_q_ticks = 0; //Ticks in current queue in this round
                     p->q_join_time = ticks; //Join time
                     p->cur_q--; //Decrease the queue
                     p->prev_q--;
@@ -598,6 +599,7 @@ void scheduler(void) {
             release(&ptable.lock);
             continue;
         }
+        p1->q_join_time = ticks+100;
 #ifdef DEBUG_Y
                 cprintf("Process with %d has been chosen to run from queue %d\n", p->pid, p->cur_q);
 #endif
@@ -719,6 +721,7 @@ static void wakeup1(void *chan) {
     p->q_join_time = ticks;
     p->cur_q_ticks = 0;
     p->cur_q = p->prev_q;
+    p->prev_q = p->cur_q;
 #endif
     }
 }
@@ -747,6 +750,7 @@ int kill(int pid) {
     p->q_join_time = ticks;
     p->cur_q_ticks = 0;
     p->cur_q = p->prev_q;
+    p->prev_q = p->cur_q;
 #endif
             }
             release(&ptable.lock);
