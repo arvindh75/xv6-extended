@@ -105,15 +105,12 @@ void trap(struct trapframe *tf) {
 
     if(myproc() && myproc()->state == RUNNING && tf->trapno == T_IRQ0 + IRQ_TIMER) {
 #ifdef MLFQ
-        if((myproc()->cur_q_ticks >= q_max_ticks[myproc()->cur_q]) && myproc()->cur_q < 4) { //If the timeslices are utilized demote the process
+        if((myproc()->cur_q_ticks >= q_max_ticks[myproc()->prev_q])) { //If the timeslices are utilized demote the process
             demote_q(myproc());
             yield();
             // Check if the process has been killed since we yielded
             if(myproc() && myproc()->killed && (tf->cs&3) == DPL_USER)
-            exit();
-        }
-        else {
-            inc_q_ticks(myproc()); //Increase the current queue ticks
+                exit();
         }
 #elif RR
         yield();

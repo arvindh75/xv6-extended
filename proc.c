@@ -17,7 +17,7 @@ static struct proc *initproc;
 int nextpid = 1;
 extern void forkret(void);
 extern void trapret(void);
-int q_age[5] = {100000, 20, 20, 20, 20};
+int q_age[5] = {20, 20, 40, 80, 160};
 
 static void wakeup1(void *chan);
 
@@ -30,16 +30,16 @@ void promote_q(struct proc* p) { //Moves process to a lower queue if timeslices 
     p->q_join_time = ticks; //Join time
     p->cur_q--; //Decrease the queue
     p->prev_q--;
-    //p->q_ticks[p->cur_q]++; //Increase ticks in new queue
 }
 
 void demote_q(struct proc* p) { //Moves process to a higher queue if timeslices are utilized
     acquire(&ptable.lock);
-    p->cur_q_ticks=0; //Ticks in current queue in this round
-    p->q_join_time = ticks; //Join time
-    p->cur_q++; //Increase the queue
-    p->prev_q++;
-    //p->q_ticks[p->cur_q]++; //Increase ticks in new queue
+#ifdef DEBUG_Y
+    cprintf("Process %d has utilized timeslices %d, moving from %d to %d\n", p->pid,p->cur_q_ticks, p->prev_q, p->prev_q+1);
+#endif
+    if(p->cur_q != 4) {
+        p->prev_q++;
+    }
     release(&ptable.lock);
 }
 
@@ -47,6 +47,9 @@ void inc_q_ticks(struct proc* p) { //Increase ticks of current queue
     acquire(&ptable.lock);
     p->cur_q_ticks++;
     p->q_ticks[p->cur_q]++;
+#ifdef DEBUG_YN
+    cprintf("Process %d, increased ticks %d for queue %d\n", p->pid, p->cur_q_ticks, p->cur_q);
+#endif
     release(&ptable.lock);
 }
 
@@ -247,12 +250,13 @@ int fork(void) {
     acquire(&ptable.lock);
 
     np->state = RUNNABLE;
-
+/*
 #ifdef MLFQ //Push the new process to the first queue
     np->cur_q = 0;
     np->prev_q = 0;
     np->q_join_time = ticks;
 #endif
+*/
 
     release(&ptable.lock);
 
@@ -325,12 +329,14 @@ int wait(void) {
                 kfree(p->kstack);
                 p->kstack = 0;
                 freevm(p->pgdir);
+/*
 #ifdef MLFQ //Remove process from the queue as it is waiting
                 p->cur_q = -1;
 #ifdef DEBUG_Y
-                cprintf("Process with %d has relinquised CPU\n", p->pid);
+                cprintf("Process %d has relinquised CPU\n", p->pid);
 #endif
 #endif
+*/
                 p->pid = 0;
                 p->parent = 0;
                 p->name[0] = 0;
@@ -373,12 +379,14 @@ int waitx(int* wtime,int* rtime) {
                 kfree(p->kstack);
                 p->kstack = 0;
                 freevm(p->pgdir);
+/*
 #ifdef MLFQ //Remove process from the queue as it is waiting
                 p->cur_q = -1;
 #ifdef DEBUG_Y
-                cprintf("Process with %d has relinquised CPU\n", p->pid);
+                cprintf("Process %d has relinquised CPU\n", p->pid);
 #endif
 #endif
+*/
                 p->pid = 0;
                 p->parent = 0;
                 p->name[0] = 0;
@@ -477,7 +485,7 @@ void scheduler(void) {
     struct cpu *c = mycpu();
     c->proc = 0;
 
-    for(;;){
+    for(;;) {
 #ifdef RR
         // Enable interrupts on this processor.
         sti();
@@ -566,26 +574,26 @@ void scheduler(void) {
         // Enable interrupts on this processor.
         sti();
         // Loop over process table looking for process to run.
-        int min_join_time=-1;
-        struct proc *p1=0;
+        int min_join_time = -1;
+        struct proc *p1 = 0;
         int found_proc = 0;
-        //TODO: Take processes from any queue (if 0 is empty, choose from 1)
         acquire(&ptable.lock);
-        for(int it=0; it<4; it++) {
+        for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+            if(p->state == RUNNABLE && (ticks - p->q_join_time >= q_age[p->cur_q]) && p->cur_q > 0) { //If the process has aged in current queue
+#ifdef DEBUG_Y
+                cprintf("Process %d has aged, value - %d, age for queue %d - %d, moving to %d\n", p->pid, ticks - p->q_join_time, p->cur_q, q_age[p->cur_q], p->cur_q-1);
+#endif
+                p->cur_q_ticks = 0; //Ticks in current queue in this round
+                p->q_join_time = ticks; //Join time
+                p->cur_q--; //Decrease the queue
+                p->prev_q--;
+            }
+        }
+        for(int it=0; it<=4; it++) {
             if(found_proc == 0) {
                 for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
                     if(p->state == RUNNABLE && p->cur_q == it) { //Loop through RUNNABLE processes and which are not waiting
-                        if((ticks - p->cur_q_ticks >= q_age[p->cur_q]) && p->cur_q > 0) { //If the process has aged in current queue
-                            p->cur_q_ticks = 0; //Ticks in current queue in this round
-                            p->q_join_time = ticks; //Join time
-                            p->cur_q--; //Decrease the queue
-                            p->prev_q--;
-
-#ifdef DEBUG_Y
-                            cprintf("Process with %d has aged, moving from %d to %d\n", p->pid, p->cur_q+1, p->cur_q);
-#endif
-                        }
-                        if(p->cur_q == 0) { //If the process is in the 0th queue
+                        if(p->cur_q == 4) { //If the process is in the 4th queue
                             //Choose the one with min_join_time to simulate a queue
                             if(min_join_time == -1) {
                                 min_join_time = p->q_join_time;
@@ -610,15 +618,15 @@ void scheduler(void) {
             release(&ptable.lock);
             continue;
         }
-        p1->q_join_time = ticks+100;
-#ifdef DEBUG_Y
-        cprintf("Process with %d has been chosen to run from queue %d\n", p->pid, p->cur_q);
-#endif
+        p1->cur_q_ticks++;
+        p1->n_run++;
+        p->prev_q = p->cur_q;
+        p1->q_ticks[p1->cur_q]++;
+        p1->cur_q = -1; //Remove from queue
         // Switch to chosen process.  It is the process's job
         // to release ptable.lock and then reacquire it
         // before jumping back to us.
         c->proc = p1;
-        p1->n_run++;
         switchuvm(p1);
         p1->state = RUNNING;
         swtch(&(c->scheduler), p1->context);
@@ -626,6 +634,12 @@ void scheduler(void) {
         // Process is done running for now.
         // It should have changed its p->state before coming back.
         c->proc = 0;
+        //TODO: RUNNABLE || SLEEPING 
+        if(p1->state == RUNNABLE || p1->state == SLEEPING) {
+            p->cur_q_ticks=0; //Ticks in current queue in this round
+            p->q_join_time = ticks; //Join time
+            p1->cur_q = p1->prev_q;
+        }
         release(&ptable.lock);
 #endif
     }
@@ -732,7 +746,6 @@ static void wakeup1(void *chan) {
             p->q_join_time = ticks;
             p->cur_q_ticks = 0;
             p->cur_q = p->prev_q;
-            p->prev_q = p->cur_q;
 #endif
         }
 }
@@ -761,7 +774,6 @@ int kill(int pid) {
                 p->q_join_time = ticks;
                 p->cur_q_ticks = 0;
                 p->cur_q = p->prev_q;
-                p->prev_q = p->cur_q;
 #endif
             }
             release(&ptable.lock);
