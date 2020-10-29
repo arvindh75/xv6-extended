@@ -13,7 +13,7 @@ for i in range(num_proc):
 
 count = 0
 initial = 0
-for line in open("TEST4.txt", "r"):
+for line in open("TEST8.txt", "r"):
     values = [int(s) for s in line.split()]
     if count == 0:
         initial = values[0]

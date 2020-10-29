@@ -1,0 +1,29 @@
+--> waitx() function is implemented which returns the wait time and run time of a process.
+    `time` command is implemented to portray the usage of waitx command.
+
+--> `ps` command is implemented to view the data in the current process table.
+
+--> 3 new scheduling algorithms are implemented.
+    -> FCFS:
+        Loops through the process table and picks the "RUNNABLE" process which has the least creation time.
+        That is, it picks the oldest process to run. In my implementation, it compares "ctime" attribute.
+    -> PBS:
+        Loops through the process table and picks the process with the highest priorty. In case of tie, it picks at random.
+        It finds a "RUNNABLE" process and picks the one with the least "priority" attribute.
+        `setPriority` command is implemented to change the priority of a process from commandline.
+    -> MLFQ:
+        Actual queue is not used. The queue is "simulated". Each process has an attribute "cur_q" which defines the current queue the process is in.
+        The time at which the process enters a queue in "q_join_time".
+        It loops from queue 0 to queue 4 and pick the first queue which has atleast one "RUNNABLE" process.
+        If it is queue 4, "q_join_time" is compared and the one with the minimum value is picked to simulate a queue's behaviour.
+        For other queues, the process is picked at random.
+        Different queues have different threshold ages, if the current process stays there more than that, it is promoted to a lower queue.
+        If a process takes more time than the alloted timeslice, it is demoted to a higher queue.
+        Process being added back to the same queue can cause starvation for other processes despite aging.
+
+--> Performance:
+    Testing the running time of the algorithms multiple times, the following order describes the average result.(Order of speed)
+    RR > MLFQ > PBS > FCFS
+
+--> Graph:
+    For the bonus, a python script is included which works on the output produced by the emulator and plots a graph. Two smaple graphs are attached.

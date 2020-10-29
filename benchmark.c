@@ -1,13 +1,14 @@
 #include "types.h"
 #include "user.h"
 
-int number_of_processes = 15;
+int number_of_processes = 8;
 
 int main(int argc, char *argv[])
 {
     int j;
     for (j = 0; j < number_of_processes; j++)
     {
+        sleep(100);
         int pid = fork();
         if (pid < 0)
         {
