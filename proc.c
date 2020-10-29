@@ -37,6 +37,10 @@ void demote_q(struct proc* p) { //Moves process to a higher queue if timeslices 
 #ifdef DEBUG_Y
     cprintf("Process %d has utilized timeslices %d, moving from %d to %d\n", p->pid,p->cur_q_ticks, p->prev_q, p->prev_q+1);
 #endif
+#ifdef DEBUG_P
+    cprintf("%d %d %d %d\n", ticks, p->pid, p->prev_q, p->prev_q+1);
+#endif
+
     if(p->cur_q != 4) {
         p->prev_q++;
     }
@@ -140,6 +144,10 @@ found:
     p->cur_q = 0;
     p->prev_q = 0;
     p->q_join_time = p->ctime;
+#ifdef DEBUG_P
+    cprintf("%d %d %d %d\n", p->q_join_time, p->pid, p->prev_q);
+#endif
+
     p->cur_q_ticks = 0;
     p->q_ticks[0] = 0;
     p->q_ticks[1] = 0;
@@ -583,6 +591,10 @@ void scheduler(void) {
 #ifdef DEBUG_Y
                 cprintf("Process %d has aged, value - %d, age for queue %d - %d, moving to %d\n", p->pid, ticks - p->q_join_time, p->cur_q, q_age[p->cur_q], p->cur_q-1);
 #endif
+#ifdef DEBUG_P
+                cprintf("%d %d %d %d\n", ticks, p->pid, p->cur_q, p->cur_q-1);
+#endif
+
                 p->cur_q_ticks = 0; //Ticks in current queue in this round
                 p->q_join_time = ticks; //Join time
                 p->cur_q--; //Decrease the queue
