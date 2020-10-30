@@ -29,10 +29,10 @@ void demote_q(struct proc* p) { //Moves process to a higher queue if timeslices 
     acquire(&ptable.lock);
     if(p->prev_q != 4) {
 #ifdef DEBUG_Y
-    cprintf("Process %d has utilized timeslices %d, moving from %d to %d\n", p->pid,p->cur_q_ticks, p->prev_q, p->prev_q+1);
+        cprintf("Process %d has utilized timeslices %d, moving from %d to %d\n", p->pid,p->cur_q_ticks, p->prev_q, p->prev_q+1);
 #endif
 #ifdef DEBUG_P
-    cprintf("%d %d %d %d\n", ticks, p->pid, p->prev_q, p->prev_q+1);
+        cprintf("%d %d %d %d\n", ticks, p->pid, p->prev_q, p->prev_q+1);
 #endif
         p->prev_q++;
     }
@@ -269,11 +269,11 @@ int fork(void) {
     acquire(&ptable.lock);
 
     np->state = RUNNABLE;
-/*
+    /*
 #ifdef MLFQ //Push the new process to the first queue
-    np->cur_q = 0;
-    np->prev_q = 0;
-    np->q_join_time = ticks;
+np->cur_q = 0;
+np->prev_q = 0;
+np->q_join_time = ticks;
 #endif
 */
 
@@ -348,11 +348,11 @@ int wait(void) {
                 kfree(p->kstack);
                 p->kstack = 0;
                 freevm(p->pgdir);
-/*
+                /*
 #ifdef MLFQ //Remove process from the queue as it is waiting
-                p->cur_q = -1;
+p->cur_q = -1;
 #ifdef DEBUG_Y
-                cprintf("Process %d has relinquised CPU\n", p->pid);
+cprintf("Process %d has relinquised CPU\n", p->pid);
 #endif
 #endif
 */
@@ -398,11 +398,11 @@ int waitx(int* wtime,int* rtime) {
                 kfree(p->kstack);
                 p->kstack = 0;
                 freevm(p->pgdir);
-/*
+                /*
 #ifdef MLFQ //Remove process from the queue as it is waiting
-                p->cur_q = -1;
+p->cur_q = -1;
 #ifdef DEBUG_Y
-                cprintf("Process %d has relinquised CPU\n", p->pid);
+cprintf("Process %d has relinquised CPU\n", p->pid);
 #endif
 #endif
 */
@@ -473,7 +473,7 @@ int ps_func() {
             if(p->state == ZOMBIE)
                 cprintf(" %s   ", "ZOMBIE");
             cprintf("  %d   ",p->rtime);
-            cprintf("  %d   ",ticks - p->ctime - p->rtime - p->iotime);
+            cprintf("  %d   ",p->cur_q_waiting_time);
             cprintf("  %d   ",p->n_run);
 #ifdef MLFQ
             cprintf("%d   ",p->cur_q);
@@ -538,6 +538,7 @@ void scheduler(void) {
             if(p->state != RUNNABLE)
                 continue;
             if(p->ctime < minval) {
+                minval = p->ctime;
                 p1=p;
             }
         }
@@ -564,30 +565,47 @@ void scheduler(void) {
         // Loop over process table looking for process to run.
         acquire(&ptable.lock);
         int minpri = 101;
-        struct proc *p1=0;
-        for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+        struct proc *p1;
+        for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
             if(p->state != RUNNABLE)
                 continue;
             if(p->priority < minpri) {
-                p1=p;
+                minpri = p->priority;
             }
         }
-        if (p1 == 0) {
+        if (minpri == 101) {
             release(&ptable.lock);
             continue;
         }
-        // Switch to chosen process.  It is the process's job
-        // to release ptable.lock and then reacquire it
-        // before jumping back to us.
-        c->proc = p1;
-        p1->n_run++;
-        switchuvm(p1);
-        p1->state = RUNNING;
-        swtch(&(c->scheduler), p1->context);
-        switchkvm();
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
+        int br_flag=0;
+        for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+            if(p->state != RUNNABLE || p->priority != minpri)
+                continue;
+            // Switch to chosen process.  It is the process's job
+            // to release ptable.lock and then reacquire it
+            // before jumping back to us.
+            c->proc = p;
+            p->n_run++;
+            switchuvm(p);
+            p->state = RUNNING;
+            swtch(&(c->scheduler), p->context);
+            switchkvm();
+            // Process is done running for now.
+            // It should have changed its p->state before coming back.
+            c->proc = 0;
+            br_flag=0;
+            for(p1 = ptable.proc; p1 < &ptable.proc[NPROC]; p1++) {
+                if(p1->state != RUNNABLE)
+                    continue;
+                if(p1->priority < minpri) {
+                    br_flag = 1;
+                    break;
+                }
+            }
+            if(br_flag) {
+                break;
+            }
+        }
         release(&ptable.lock);
 #elif MLFQ
         // Enable interrupts on this processor.
@@ -642,7 +660,7 @@ void scheduler(void) {
             continue;
         }
 #ifdef DEBUG_Y
-    cprintf("Process %d is picked from %d\n", p1->pid, p1->cur_q);
+        cprintf("Process %d is picked from %d\n", p1->pid, p1->cur_q);
 #endif
         //p1->cur_q_ticks++;
         p1->n_run++;

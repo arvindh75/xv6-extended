@@ -84,9 +84,15 @@ void trap(struct trapframe *tf) {
 
             //PAGEBREAK: 13
         default:
-            if(myproc() == 0 || (tf->cs&3) == 0){
+            if(myproc() == 0){
                 // In kernel, it must be our mistake.
-                cprintf("unexpected trap %d from cpu %d eip %x (cr2=0x%x)\n",
+                cprintf("unexpected trap1 %d from cpu %d eip %x (cr2=0x%x)\n",
+                        tf->trapno, cpuid(), tf->eip, rcr2());
+                panic("trap");
+            }
+            if((tf->cs&3) == 0){
+                // In kernel, it must be our mistake.
+                cprintf("unexpected trap2 %d from cpu %d eip %x (cr2=0x%x)\n",
                         tf->trapno, cpuid(), tf->eip, rcr2());
                 panic("trap");
             }
@@ -115,11 +121,6 @@ void trap(struct trapframe *tf) {
                 exit();
         }
 #elif RR
-        yield();
-        // Check if the process has been killed since we yielded
-        if(myproc() && myproc()->killed && (tf->cs&3) == DPL_USER)
-            exit();
-#elif PBS
         yield();
         // Check if the process has been killed since we yielded
         if(myproc() && myproc()->killed && (tf->cs&3) == DPL_USER)
