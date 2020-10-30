@@ -61,6 +61,7 @@ struct proc {
     int q_join_time;
     int cur_q_ticks;
     int prev_q;
+    int cur_q_waiting_time;
 };
 
 struct proc_ps {

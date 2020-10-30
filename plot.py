@@ -13,7 +13,7 @@ for i in range(num_proc):
 
 count = 0
 initial = 0
-for line in open("TEST8.txt", "r"):
+for line in open("TEST256.txt", "r"):
     values = [int(s) for s in line.split()]
     if count == 0:
         initial = values[0]
@@ -22,7 +22,7 @@ for line in open("TEST8.txt", "r"):
     count += 1
 
 for i in range(num_proc):
-    plt.plot(x[i], y[i], label="proc " + str(i + 1))
+    plt.plot(x[i], y[i])  # , label="proc " + str(i + 1))
 
 plt.xlabel("Ticks")
 plt.ylabel("Level")

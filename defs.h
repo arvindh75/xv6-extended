@@ -123,9 +123,9 @@ void            yield(void);
 int             waitx(int*, int*);
 int             set_priority(int, int);
 int             ps_func(void);
-void            promote_q(struct proc* p);
 void            demote_q(struct proc* p);
 void            inc_q_ticks(struct proc *p);
+void            inc_r_io_time(void);
 // swtch.S
 void            swtch(struct context**, struct context*);
 

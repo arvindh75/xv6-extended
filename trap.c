@@ -48,14 +48,15 @@ void trap(struct trapframe *tf) {
                 ticks++;
                 wakeup(&ticks);
                 release(&tickslock);
-                if(myproc()) {
-                    if(myproc()->state == SLEEPING) {
-                        myproc()->iotime++;
-                    }
-                    if(myproc()->state == RUNNING) {
-                        myproc()->rtime++;
-                    }
-                }
+                inc_r_io_time();
+                //if(myproc()) {
+                    //if(myproc()->state == SLEEPING) {
+                    //    myproc()->iotime++;
+                    //}
+                    //if(myproc()->state == RUNNING) {
+                    //    myproc()->rtime++;
+                    //}
+                //}
             }
             lapiceoi();
             break;
@@ -105,6 +106,7 @@ void trap(struct trapframe *tf) {
 
     if(myproc() && myproc()->state == RUNNING && tf->trapno == T_IRQ0 + IRQ_TIMER) {
 #ifdef MLFQ
+        myproc()->cur_q_ticks++;
         if((myproc()->cur_q_ticks >= q_max_ticks[myproc()->prev_q])) { //If the timeslices are utilized demote the process
             demote_q(myproc());
             yield();
