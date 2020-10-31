@@ -476,7 +476,7 @@ int ps_func() {
             cprintf("  %d   ",p->cur_q_waiting_time);
             cprintf("  %d   ",p->n_run);
 #ifdef MLFQ
-            cprintf("%d   ",p->cur_q);
+            cprintf("%d   ",p->prev_q);
             cprintf(" %d   ",p->q_ticks[0]);
             cprintf(" %d   ",p->q_ticks[1]);
             cprintf(" %d   ",p->q_ticks[2]);
