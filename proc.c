@@ -55,6 +55,7 @@ void inc_r_io_time() {
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
         if(p->state == RUNNING) {
             p->rtime++;
+            //p->q_ticks[p->prev_q]++;
         }
         if(p->state == SLEEPING) {
             p->iotime++;
@@ -665,7 +666,7 @@ void scheduler(void) {
         //p1->cur_q_ticks++;
         p1->n_run++;
         //p->prev_q = p->cur_q;
-        p1->q_ticks[p1->cur_q]++;
+        //p1->q_ticks[p1->cur_q]++;
         p1->cur_q = -1; //Remove from queue
         // Switch to chosen process.  It is the process's job
         // to release ptable.lock and then reacquire it

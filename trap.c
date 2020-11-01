@@ -113,6 +113,7 @@ void trap(struct trapframe *tf) {
     if(myproc() && myproc()->state == RUNNING && tf->trapno == T_IRQ0 + IRQ_TIMER) {
 #ifdef MLFQ
         myproc()->cur_q_ticks++;
+        myproc()->q_ticks[myproc()->prev_q]++;
         if((myproc()->cur_q_ticks >= q_max_ticks[myproc()->prev_q])) { //If the timeslices are utilized demote the process
             demote_q(myproc());
             yield();
