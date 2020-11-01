@@ -62,6 +62,7 @@ struct proc {
     int cur_q_ticks;
     int prev_q;
     int cur_q_waiting_time;
+    int last_runtime;
 };
 
 struct proc_ps {

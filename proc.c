@@ -60,6 +60,7 @@ void inc_r_io_time() {
         if(p->state == SLEEPING) {
             p->iotime++;
             p->cur_q_waiting_time++;
+            p->last_runtime = ticks;
         }
         if(p->state == RUNNABLE) {
             p->cur_q_waiting_time++;
@@ -166,6 +167,7 @@ found:
     p->q_ticks[2] = 0;
     p->q_ticks[3] = 0;
     p->q_ticks[4] = 0;
+    p->last_runtime = p->ctime;
 
     return p;
 }
@@ -538,8 +540,8 @@ void scheduler(void) {
         for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
             if(p->state != RUNNABLE)
                 continue;
-            if(p->ctime < minval) {
-                minval = p->ctime;
+            if(p->last_runtime < minval) {
+                minval = p->last_runtime;
                 p1=p;
             }
         }
@@ -552,6 +554,7 @@ void scheduler(void) {
         // before jumping back to us.
         c->proc = p1;
         p1->n_run++;
+        p1->last_runtime = ticks;
         switchuvm(p1);
         p1->state = RUNNING;
         swtch(&(c->scheduler), p1->context);
